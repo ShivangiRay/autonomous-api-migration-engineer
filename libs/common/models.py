@@ -69,3 +69,18 @@ class CompatibilityReport(BaseModel):
     score: int
     findings: list[CompatibilityFinding]
 
+
+class ProposalComment(BaseModel):
+    author: str = "developer"
+    body: str
+    resolved: bool = False
+
+
+class GrpcMigrationProposal(BaseModel):
+    id: str
+    endpoint_id: str
+    status: str = "needs_review"
+    basis: dict
+    proposed_proto: str
+    comments: list[ProposalComment] = Field(default_factory=list)
+    generated_files: list[str] = Field(default_factory=list)

@@ -47,6 +47,17 @@ Run the sample workflow:
 python -m libs.common.demo examples/sample-openapi/user-management.openapi.json build/artifacts
 ```
 
+Interactive migration proposal flow:
+
+```bash
+migration-engineer analyze
+migration-engineer propose-grpc --endpoint "POST /users"
+migration-engineer comment --proposal build/proposals/proposal-post-users.json --body "Add idempotency key and validation notes"
+migration-engineer resolve-comments --proposal build/proposals/proposal-post-users.json
+migration-engineer approve --proposal build/proposals/proposal-post-users.json
+migration-engineer implement-grpc --proposal build/proposals/proposal-post-users.json
+```
+
 Generated outputs include:
 
 - `endpoint-inventory.json`
@@ -56,6 +67,8 @@ Generated outputs include:
 - `compatibility-report.json`
 - `executive-report.md`
 - `adr/0001-contract-migration-strategy.md`
+
+Proposal outputs include the basis for the suggestion. The bootstrap does not train agents on private data; it uses deterministic rules over supplied OpenAPI/source evidence and records that basis in the proposal JSON.
 
 ## Demo Login
 
