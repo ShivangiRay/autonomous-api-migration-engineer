@@ -6,7 +6,8 @@ from pathlib import Path
 
 from agents.approval.agent import ApprovalAgent
 from agents.implementation.agent import ImplementationAgent
-from libs.common.proposals import propose_grpc
+from libs.common.memory import MigrationMemoryStore
+from libs.common.proposals import propose_event, propose_grpc
 from libs.common.workflow import MigrationWorkflow
 
 
@@ -25,6 +26,14 @@ def main() -> None:
     propose.add_argument("--endpoint", required=True)
     propose.add_argument("--openapi-path", default=DEFAULT_OPENAPI)
     propose.add_argument("--output-dir", default="build/proposals")
+
+    propose_event_parser = sub.add_parser("propose-event")
+    propose_event_parser.add_argument("--endpoint", required=True)
+    propose_event_parser.add_argument("--openapi-path", default=DEFAULT_OPENAPI)
+    propose_event_parser.add_argument("--output-dir", default="build/proposals")
+
+    memory = sub.add_parser("memory")
+    memory.add_argument("--path", default="build/memory/migration-memory.jsonl")
 
     comment = sub.add_parser("comment")
     comment.add_argument("--proposal", required=True)
@@ -50,7 +59,20 @@ def main() -> None:
         path = propose_grpc(args.openapi_path, args.endpoint, args.output_dir)
         proposal = json.loads(Path(path).read_text())
         print(f"System: Here is the generated proto proposal: {path}")
+        print(f"System: Retrieved {len(proposal['basis']['retrieved_memory_cases'])} similar memory cases.")
         print(proposal["proposed_proto"])
+    elif args.command == "propose-event":
+        path = propose_event(args.openapi_path, args.endpoint, args.output_dir)
+        proposal = json.loads(Path(path).read_text())
+        transport = proposal["transport_recommendation"]
+        print(f"System: Here is the generated event proposal: {path}")
+        print(f"System: Recommended transport: {transport['transport']} ({transport['confidence']:.2f})")
+        print(f"System: Why: {transport['rationale']}")
+    elif args.command == "memory":
+        cases = MigrationMemoryStore(args.path).all()
+        print(f"System: Memory cases: {len(cases)}")
+        for case in cases:
+            print(f"System: {case.id} | {case.endpoint_id} | {case.target} | {case.decision}")
     elif args.command == "comment":
         proposal = ApprovalAgent().add_comment(args.proposal, args.body)
         print(f"System: Comment added. Proposal status: {proposal.status}")

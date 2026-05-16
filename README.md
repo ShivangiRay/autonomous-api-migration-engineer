@@ -58,6 +58,23 @@ migration-engineer approve --proposal build/proposals/proposal-post-users.json
 migration-engineer implement-grpc --proposal build/proposals/proposal-post-users.json
 ```
 
+RAG-style local memory:
+
+```bash
+migration-engineer memory
+migration-engineer propose-grpc --endpoint "POST /users"
+```
+
+The implementation step writes successful approved migrations into `build/memory/migration-memory.jsonl`. Future proposals retrieve similar local cases and include the retrieved cases plus learned adjustments in the proposal basis. This is not model fine-tuning; it is transparent retrieval over prior generated/reviewed artifacts.
+
+Event transport proposal:
+
+```bash
+migration-engineer propose-event --endpoint "PATCH /users/{userId}"
+```
+
+The event proposal recommends Kafka when the endpoint looks like a durable domain event that benefits from replay, ordering, and fan-out. It recommends RabbitMQ when the endpoint looks more like command dispatch, task routing, or worker handoff.
+
 Generated outputs include:
 
 - `endpoint-inventory.json`

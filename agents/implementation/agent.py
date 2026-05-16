@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from libs.common.models import GrpcMigrationProposal
+from libs.common.memory import MigrationMemoryStore
+from libs.common.models import GrpcMigrationProposal, MemoryCase
 
 
 class ImplementationAgent:
@@ -38,6 +39,20 @@ class ImplementationAgent:
         proposal.status = "implemented"
         proposal.generated_files = [str(package_init), str(server_init), str(proto_path), str(service_path), str(test_path)]
         Path(proposal_path).write_text(proposal.model_dump_json(indent=2))
+        MigrationMemoryStore().add(
+            MemoryCase(
+                id=f"memory-{proposal.id}",
+                endpoint_id=proposal.endpoint_id,
+                target="migrate_grpc",
+                decision="implemented",
+                rationale="Developer approved proposal and generated gRPC service scaffold plus mapping test.",
+                tags=["grpc", "approved", proposal.endpoint_id.lower()],
+                learned_adjustments=[
+                    "Preserve developer-requested idempotency keys in future request messages.",
+                    "Generate mapping tests alongside service implementation.",
+                ],
+            )
+        )
         return [package_init, server_init, proto_path, service_path, test_path]
 
     def _write_once(self, path: Path, content: str) -> None:

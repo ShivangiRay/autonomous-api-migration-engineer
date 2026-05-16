@@ -84,3 +84,30 @@ class GrpcMigrationProposal(BaseModel):
     proposed_proto: str
     comments: list[ProposalComment] = Field(default_factory=list)
     generated_files: list[str] = Field(default_factory=list)
+
+
+class MemoryCase(BaseModel):
+    id: str
+    endpoint_id: str
+    target: str
+    decision: str
+    rationale: str
+    tags: list[str] = Field(default_factory=list)
+    learned_adjustments: list[str] = Field(default_factory=list)
+
+
+class EventTransportRecommendation(BaseModel):
+    transport: str
+    rationale: str
+    confidence: float
+    tradeoffs: list[str] = Field(default_factory=list)
+
+
+class EventMigrationProposal(BaseModel):
+    id: str
+    endpoint_id: str
+    status: str = "needs_review"
+    basis: dict
+    transport_recommendation: EventTransportRecommendation
+    proposed_asyncapi: dict
+    similar_memory_cases: list[MemoryCase] = Field(default_factory=list)
