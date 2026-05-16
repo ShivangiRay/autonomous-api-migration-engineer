@@ -61,4 +61,3 @@ Generated outputs include:
 
 - Email: `demo@example.com`
 - Password: `demo-password`
-
