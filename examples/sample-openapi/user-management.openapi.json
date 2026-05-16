@@ -1,0 +1,53 @@
+{
+  "openapi": "3.0.3",
+  "info": {"title": "User Management API", "version": "1.4.0"},
+  "security": [{"bearerAuth": []}],
+  "paths": {
+    "/users": {
+      "get": {
+        "operationId": "listUsers",
+        "summary": "List users with pagination",
+        "parameters": [
+          {"name": "page", "in": "query", "schema": {"type": "integer"}},
+          {"name": "pageSize", "in": "query", "schema": {"type": "integer"}}
+        ],
+        "responses": {"200": {"description": "Users", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/User"}}}}}}
+      },
+      "post": {
+        "operationId": "createUser",
+        "summary": "Create a user",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateUserRequest"}}}},
+        "responses": {"201": {"description": "Created", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/User"}}}}}
+      }
+    },
+    "/users/{userId}": {
+      "get": {
+        "operationId": "getUser",
+        "summary": "Get user by id",
+        "responses": {"200": {"description": "User", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/User"}}}}}
+      },
+      "patch": {
+        "operationId": "updateUserStatus",
+        "summary": "Update user status",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/UpdateStatusRequest"}}}},
+        "responses": {"200": {"description": "Updated", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/User"}}}}}
+      }
+    },
+    "/admin/users/{userId}/roles": {
+      "put": {
+        "operationId": "replaceAdminUserRoles",
+        "summary": "Replace user roles through admin context",
+        "responses": {"200": {"description": "Roles", "content": {"application/json": {"schema": {"type": "object"}}}}}
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer"}},
+    "schemas": {
+      "User": {"type": "object", "required": ["id", "email", "status"], "properties": {"id": {"type": "string"}, "email": {"type": "string"}, "status": {"type": "string", "enum": ["active", "disabled"]}}},
+      "CreateUserRequest": {"type": "object", "required": ["email"], "properties": {"email": {"type": "string"}}},
+      "UpdateStatusRequest": {"type": "object", "required": ["status"], "properties": {"status": {"type": "string"}}}
+    }
+  }
+}
+
