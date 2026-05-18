@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Sparkles,
   UploadCloud,
+  Wand2,
   Workflow,
   XCircle
 } from "lucide-react";
@@ -86,6 +87,7 @@ function App() {
   const [proposals, setProposals] = useState({});
   const [commentText, setCommentText] = useState("Add idempotency key and validation notes");
   const [uploadError, setUploadError] = useState("");
+  const [nextHint, setNextHint] = useState("Select a gRPC or Event endpoint, then click Generate proposal.");
   const [activity, setActivity] = useState([
     "Scanner parsed 5 OpenAPI endpoints.",
     "Planner found 2 gRPC candidates and 1 event candidate.",
@@ -134,6 +136,7 @@ function App() {
         `Scanner parsed ${analyzed.length} endpoints from OpenAPI.`,
         `Planner found ${analyzed.filter((item) => item.target === "migrate_grpc").length} gRPC candidates and ${analyzed.filter((item) => item.target === "convert_event").length} event candidates.`
       ]);
+      setNextHint("Upload analyzed. Next: select a gRPC/Event endpoint and click Generate proposal.");
     } catch (error) {
       setUploadError(error.message || "Could not parse OpenAPI file.");
     }
@@ -153,6 +156,7 @@ function App() {
     };
     setProposals({ ...proposals, [selected.id]: next });
     pushActivity(`Generated ${targetLabels[selected.target]} proposal for ${selected.id}.`);
+    setNextHint("Proposal generated. Next: add comments if needed, otherwise click Approve.");
   };
 
   const addComment = () => {
@@ -168,6 +172,7 @@ function App() {
       }
     });
     pushActivity(`Developer commented on ${selected.id}: "${commentText.trim()}"`);
+    setNextHint("Comment added. Next: click Resolve comments before approval.");
   };
 
   const resolveComments = () => {
@@ -177,6 +182,7 @@ function App() {
       [selected.id]: { ...proposal, status: "needs_review", resolved: true }
     });
     pushActivity(`Resolved review comments for ${selected.id} and updated the proposed contract.`);
+    setNextHint("Comments resolved. Next: click Approve.");
   };
 
   const approveProposal = () => {
@@ -186,6 +192,7 @@ function App() {
       [selected.id]: { ...proposal, status: "approved", approved: true }
     });
     pushActivity(`Approved proposal for ${selected.id}.`);
+    setNextHint(selected.target === "migrate_grpc" ? "Approved. Next: click Implement gRPC." : "Event proposal approved. Review AsyncAPI and transport recommendation.");
   };
 
   const implementProposal = () => {
@@ -195,6 +202,7 @@ function App() {
       [selected.id]: { ...proposal, status: "implemented", implemented: true }
     });
     pushActivity(`Generated gRPC proto, service scaffold, adapter, and mapping test for ${selected.id}.`);
+    setNextHint("Implementation generated. Review the output files and run validation tests.");
   };
 
   const pushActivity = (message) => {
@@ -229,6 +237,16 @@ function App() {
           <input type="file" accept=".json,.yaml,.yml,application/json,text/yaml" onChange={handleUpload} />
         </label>
         {uploadError ? <strong className="uploadError">{uploadError}</strong> : null}
+      </section>
+
+      <section className="nextAction">
+        <div>
+          <h2><Wand2 size={19} /> Next action</h2>
+          <p>{nextHint}</p>
+        </div>
+        <button onClick={createProposal} disabled={!["migrate_grpc", "convert_event"].includes(selected?.target)}>
+          <Sparkles size={16} /> Generate proposal for {selected?.id}
+        </button>
       </section>
 
       <section className="metrics">

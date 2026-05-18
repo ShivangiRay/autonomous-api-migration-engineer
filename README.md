@@ -39,6 +39,8 @@ Open the dashboard at:
 http://localhost:5173
 ```
 
+![Interactive dashboard showing OpenAPI upload, endpoint inventory, and migration proposal controls](docs/assets/dashboard-openapi-upload.png)
+
 The dashboard is an interactive local demo of the CLI workflow. You can:
 
 - Upload an OpenAPI `.json`, `.yaml`, or `.yml` file.
@@ -52,6 +54,15 @@ The dashboard is an interactive local demo of the CLI workflow. You can:
 - See the implementation panel after approval and simulate gRPC implementation output.
 - Review Kafka vs RabbitMQ event transport reasoning.
 - Watch an agent activity feed update as you interact.
+
+After uploading a file, use the **Next action** bar:
+
+1. Select a gRPC or Event endpoint from **Endpoint Inventory**.
+2. Click **Generate proposal**.
+3. Add comments if needed.
+4. Resolve comments.
+5. Approve the proposal.
+6. For gRPC endpoints, click **Implement gRPC** to show generated proto/service/test outputs.
 
 Docker:
 

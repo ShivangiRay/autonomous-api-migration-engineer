@@ -111,6 +111,47 @@ h1 {
   box-shadow: 0 18px 44px rgba(31, 56, 88, 0.07);
 }
 
+.nextAction {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+  position: sticky;
+  top: 12px;
+  z-index: 10;
+  margin: 0 0 22px;
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  border-radius: 18px;
+  padding: 16px 18px;
+  color: #172033;
+  background: rgba(239, 246, 255, 0.94);
+  box-shadow: 0 18px 40px rgba(37, 99, 235, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.nextAction h2 {
+  margin-bottom: 4px;
+}
+
+.nextAction p {
+  margin-bottom: 0;
+  color: #4d617e;
+}
+
+.nextAction button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 14px;
+  padding: 13px 16px;
+  color: white;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  font-weight: 900;
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.2);
+}
+
 .uploadPanel h2 {
   margin-bottom: 6px;
 }
@@ -528,7 +569,7 @@ pre {
 }
 
 @media (max-width: 1100px) {
-  .hero, .workspace, .tabs, .lowerGrid, .uploadPanel {
+  .hero, .workspace, .tabs, .lowerGrid, .uploadPanel, .nextAction {
     grid-template-columns: 1fr;
   }
 
