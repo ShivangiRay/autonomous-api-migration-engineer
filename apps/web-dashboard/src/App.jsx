@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { parse as parseYaml } from "yaml";
 import {
   Activity,
   ArrowRight,
@@ -16,77 +17,52 @@ import {
   RadioTower,
   ShieldCheck,
   Sparkles,
+  UploadCloud,
   Workflow,
   XCircle
 } from "lucide-react";
 import "./styles.css";
 
-const endpoints = [
-  {
-    id: "GET /users",
-    method: "GET",
-    path: "/users",
-    target: "keep_rest",
-    confidence: 0.91,
-    score: 92,
-    status: "retained",
-    reason: "Collection-style read endpoint remains efficient and externally friendly as REST.",
-    evidence: "OpenAPI pagination parameters: page, pageSize",
-    diff: "- REST GET /users?page=1&pageSize=25\n+ Keep REST collection endpoint\n+ Add pagination contract notes"
-  },
-  {
-    id: "POST /users",
-    method: "POST",
-    path: "/users",
-    target: "migrate_grpc",
-    confidence: 0.86,
-    score: 84,
-    status: "recommended",
-    reason: "Typed request/response operation benefits from strongly versioned gRPC contracts.",
-    evidence: "OpenAPI request body: CreateUserRequest, response: User",
-    diff:
-      "- REST POST /users\n- body: { email }\n+ rpc CreateUser(CreateUserRequest) returns (CreateUserResponse)\n+ message CreateUserRequest { string email = 1; }"
-  },
-  {
-    id: "GET /users/{userId}",
-    method: "GET",
-    path: "/users/{userId}",
-    target: "migrate_grpc",
-    confidence: 0.86,
-    score: 88,
-    status: "recommended",
-    reason: "Point lookup maps cleanly to unary gRPC and stable User response contracts.",
-    evidence: "OpenAPI response schema: User",
-    diff:
-      "- REST GET /users/{userId}\n+ rpc GetUser(GetUserRequest) returns (GetUserResponse)\n+ message GetUserRequest { string user_id = 1; }"
-  },
-  {
-    id: "PATCH /users/{userId}",
-    method: "PATCH",
-    path: "/users/{userId}",
-    target: "convert_event",
-    confidence: 0.86,
-    score: 76,
-    status: "recommended",
-    reason: "User status transitions should publish an asynchronous fact for downstream consumers.",
-    evidence: "operationId: updateUserStatus",
-    transport: "Kafka",
-    diff:
-      "- REST PATCH /users/{userId}\n+ channel users.updateUserStatus.v1\n+ event UserStatusUpdatedEvent\n+ recommended transport: Kafka"
-  },
-  {
-    id: "PUT /admin/users/{userId}/roles",
-    method: "PUT",
-    path: "/admin/users/{userId}/roles",
-    target: "split_context",
-    confidence: 0.72,
-    score: 61,
-    status: "needs_context",
-    reason: "Admin role management crosses a bounded context; split ownership before protocol migration.",
-    evidence: "Path prefix: /admin",
-    diff: "- REST PUT /admin/users/{userId}/roles\n+ Split AdminRoleService boundary first\n+ Re-run planner after context split"
+const sampleSpec = {
+  info: { title: "User Management API" },
+  paths: {
+    "/users": {
+      get: {
+        operationId: "listUsers",
+        summary: "List users",
+        parameters: [{ name: "page" }, { name: "pageSize" }],
+        responses: { 200: { content: { "application/json": { schema: { type: "array" } } } } }
+      },
+      post: {
+        operationId: "createUser",
+        summary: "Create user",
+        requestBody: { content: { "application/json": { schema: { $ref: "#/components/schemas/CreateUserRequest" } } } },
+        responses: { 201: { content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } } }
+      }
+    },
+    "/users/{userId}": {
+      get: {
+        operationId: "getUser",
+        summary: "Get user",
+        responses: { 200: { content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } } }
+      },
+      patch: {
+        operationId: "updateUserStatus",
+        summary: "Update user status",
+        requestBody: { content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateStatusRequest" } } } },
+        responses: { 200: { content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } } }
+      }
+    },
+    "/admin/users/{userId}/roles": {
+      put: {
+        operationId: "replaceAdminUserRoles",
+        summary: "Replace user roles"
+      }
+    }
   }
-];
+};
+
+const httpMethods = ["get", "post", "put", "patch", "delete"];
 
 const targetLabels = {
   keep_rest: "Keep REST",
@@ -103,24 +79,30 @@ const targetClasses = {
 };
 
 function App() {
+  const [serviceName, setServiceName] = useState("User Management API");
+  const [sourceName, setSourceName] = useState("Sample OpenAPI fixture");
+  const [endpoints, setEndpoints] = useState(() => analyzeOpenApi(sampleSpec));
   const [selectedId, setSelectedId] = useState("POST /users");
   const [proposals, setProposals] = useState({});
   const [commentText, setCommentText] = useState("Add idempotency key and validation notes");
+  const [uploadError, setUploadError] = useState("");
   const [activity, setActivity] = useState([
     "Scanner parsed 5 OpenAPI endpoints.",
     "Planner found 2 gRPC candidates and 1 event candidate.",
-    "Verifier flagged idempotency and pagination review points."
+    "Verifier flagged idempotency and bounded-context review points."
   ]);
 
-  const selected = endpoints.find((endpoint) => endpoint.id === selectedId);
-  const proposal = proposals[selectedId];
+  const selected = endpoints.find((endpoint) => endpoint.id === selectedId) || endpoints[0];
+  const proposal = proposals[selected?.id];
 
   const metrics = useMemo(() => {
     const grpc = endpoints.filter((endpoint) => endpoint.target === "migrate_grpc").length;
     const events = endpoints.filter((endpoint) => endpoint.target === "convert_event").length;
     const rest = endpoints.filter((endpoint) => endpoint.target === "keep_rest").length;
     const risks = endpoints.filter((endpoint) => endpoint.score < 80).length;
-    const readiness = Math.round(endpoints.reduce((sum, endpoint) => sum + endpoint.score, 0) / endpoints.length);
+    const readiness = endpoints.length
+      ? Math.round(endpoints.reduce((sum, endpoint) => sum + endpoint.score, 0) / endpoints.length)
+      : 0;
     return [
       ["Endpoints", endpoints.length, "blue"],
       ["gRPC candidates", grpc, "violet"],
@@ -129,7 +111,33 @@ function App() {
       ["Risk flags", risks, "red"],
       ["Readiness", `${readiness}%`, "cyan"]
     ];
-  }, []);
+  }, [endpoints]);
+
+  const handleUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const raw = await file.text();
+      const spec = file.name.endsWith(".json") ? JSON.parse(raw) : parseYaml(raw);
+      const analyzed = analyzeOpenApi(spec);
+      if (!analyzed.length) {
+        throw new Error("No OpenAPI paths were found.");
+      }
+      setServiceName(spec.info?.title || file.name);
+      setSourceName(file.name);
+      setEndpoints(analyzed);
+      setSelectedId(analyzed[0].id);
+      setProposals({});
+      setUploadError("");
+      setActivity([
+        `Uploaded ${file.name}.`,
+        `Scanner parsed ${analyzed.length} endpoints from OpenAPI.`,
+        `Planner found ${analyzed.filter((item) => item.target === "migrate_grpc").length} gRPC candidates and ${analyzed.filter((item) => item.target === "convert_event").length} event candidates.`
+      ]);
+    } catch (error) {
+      setUploadError(error.message || "Could not parse OpenAPI file.");
+    }
+  };
 
   const createProposal = () => {
     if (!["migrate_grpc", "convert_event"].includes(selected.target)) {
@@ -143,7 +151,7 @@ function App() {
       approved: false,
       implemented: false
     };
-    setProposals({ ...proposals, [selectedId]: next });
+    setProposals({ ...proposals, [selected.id]: next });
     pushActivity(`Generated ${targetLabels[selected.target]} proposal for ${selected.id}.`);
   };
 
@@ -151,7 +159,7 @@ function App() {
     if (!proposal || !commentText.trim()) return;
     setProposals({
       ...proposals,
-      [selectedId]: {
+      [selected.id]: {
         ...proposal,
         status: "changes_requested",
         comments: [...proposal.comments, commentText.trim()],
@@ -166,7 +174,7 @@ function App() {
     if (!proposal) return;
     setProposals({
       ...proposals,
-      [selectedId]: { ...proposal, status: "needs_review", resolved: true }
+      [selected.id]: { ...proposal, status: "needs_review", resolved: true }
     });
     pushActivity(`Resolved review comments for ${selected.id} and updated the proposed contract.`);
   };
@@ -175,7 +183,7 @@ function App() {
     if (!proposal || (proposal.comments.length > 0 && !proposal.resolved)) return;
     setProposals({
       ...proposals,
-      [selectedId]: { ...proposal, status: "approved", approved: true }
+      [selected.id]: { ...proposal, status: "approved", approved: true }
     });
     pushActivity(`Approved proposal for ${selected.id}.`);
   };
@@ -184,7 +192,7 @@ function App() {
     if (!proposal?.approved || selected.target !== "migrate_grpc") return;
     setProposals({
       ...proposals,
-      [selectedId]: { ...proposal, status: "implemented", implemented: true }
+      [selected.id]: { ...proposal, status: "implemented", implemented: true }
     });
     pushActivity(`Generated gRPC proto, service scaffold, adapter, and mapping test for ${selected.id}.`);
   };
@@ -200,15 +208,28 @@ function App() {
           <p className="eyebrow"><Sparkles size={14} /> Autonomous API Migration Engineer</p>
           <h1>REST migration control room</h1>
           <p className="lede">
-            Review endpoint evidence, generate gRPC/event proposals, resolve comments, and approve migration work exactly like the CLI flow.
+            Upload an OpenAPI JSON/YAML, analyze endpoints, generate gRPC/event proposals, resolve comments, approve, and implement gRPC scaffolds from the UI.
           </p>
         </div>
         <div className="heroPanel">
-          <span>Demo service</span>
-          <strong>User Management API</strong>
-          <small>OpenAPI v3 fixture loaded</small>
+          <span>Loaded service</span>
+          <strong>{serviceName}</strong>
+          <small>{sourceName}</small>
         </div>
       </header>
+
+      <section className="uploadPanel">
+        <div>
+          <h2><UploadCloud size={19} /> Upload OpenAPI</h2>
+          <p>Use `.json`, `.yaml`, or `.yml`. The dashboard parses paths locally and re-runs the planner view immediately.</p>
+        </div>
+        <label className="uploadButton">
+          <UploadCloud size={16} />
+          Choose OpenAPI file
+          <input type="file" accept=".json,.yaml,.yml,application/json,text/yaml" onChange={handleUpload} />
+        </label>
+        {uploadError ? <strong className="uploadError">{uploadError}</strong> : null}
+      </section>
 
       <section className="metrics">
         {metrics.map(([label, value, tone]) => (
@@ -228,7 +249,7 @@ function App() {
           <div className="endpointList">
             {endpoints.map((endpoint) => (
               <button
-                className={`endpointRow ${selectedId === endpoint.id ? "active" : ""}`}
+                className={`endpointRow ${selected?.id === endpoint.id ? "active" : ""}`}
                 key={endpoint.id}
                 onClick={() => setSelectedId(endpoint.id)}
               >
@@ -288,7 +309,7 @@ function App() {
               <button onClick={approveProposal} disabled={!proposal || (proposal.comments.length > 0 && !proposal.resolved)}>
                 <ShieldCheck size={16} /> Approve
               </button>
-              <button onClick={implementProposal} disabled={!proposal?.approved || selected.target !== "migrate_grpc"}>
+              <button className="implementButton" onClick={implementProposal} disabled={!proposal?.approved || selected.target !== "migrate_grpc"}>
                 <Code2 size={16} /> Implement gRPC
               </button>
             </div>
@@ -299,6 +320,7 @@ function App() {
             </label>
 
             <ProposalPreview endpoint={selected} proposal={proposal} />
+            <ImplementationPreview endpoint={selected} proposal={proposal} />
           </div>
         </section>
       </section>
@@ -307,7 +329,7 @@ function App() {
         <article className="graphPanel">
           <h2><Network size={18} /> Migration Graph</h2>
           <div className="graphLine">
-            <Node label="OpenAPI scan" icon={<Activity size={16} />} />
+            <Node label="OpenAPI upload" icon={<UploadCloud size={16} />} />
             <ArrowRight size={18} />
             <Node label="Planner DAG" icon={<Workflow size={16} />} />
             <ArrowRight size={18} />
@@ -325,6 +347,80 @@ function App() {
       </section>
     </main>
   );
+}
+
+function analyzeOpenApi(spec) {
+  const paths = spec?.paths || {};
+  return Object.entries(paths).flatMap(([path, operations]) =>
+    Object.entries(operations || {})
+      .filter(([method]) => httpMethods.includes(method.toLowerCase()))
+      .map(([method, operation]) => {
+        const upper = method.toUpperCase();
+        const operationId = operation.operationId || `${method}_${path}`.replace(/[^a-zA-Z0-9]+/g, "_");
+        const target = classifyEndpoint(upper, path, operationId);
+        const score = target === "split_context" ? 61 : target === "convert_event" ? 76 : target === "keep_rest" ? 92 : 85;
+        return {
+          id: `${upper} ${path}`,
+          method: upper,
+          path,
+          operationId,
+          target,
+          confidence: target === "split_context" ? 0.72 : target === "keep_rest" ? 0.91 : 0.86,
+          score,
+          reason: rationaleFor(target),
+          evidence: evidenceFor(path, operation),
+          diff: diffFor(target, upper, path, operationId)
+        };
+      })
+  );
+}
+
+function classifyEndpoint(method, path, operationId) {
+  const lowered = `${method} ${path} ${operationId}`.toLowerCase();
+  if (lowered.includes("admin")) return "split_context";
+  if (lowered.includes("status") || lowered.includes("event") || lowered.includes("activate")) return "convert_event";
+  if (method === "GET" && !path.includes("{")) return "keep_rest";
+  if (["GET", "POST", "PUT", "PATCH"].includes(method)) return "migrate_grpc";
+  return "keep_rest";
+}
+
+function rationaleFor(target) {
+  return {
+    keep_rest: "Collection-style read endpoint remains efficient and externally friendly as REST.",
+    migrate_grpc: "Typed request/response operation benefits from strongly versioned gRPC contracts.",
+    convert_event: "State transitions should publish asynchronous facts for downstream consumers.",
+    split_context: "This endpoint appears to cross an admin or bounded-context boundary; split ownership before protocol migration."
+  }[target];
+}
+
+function evidenceFor(path, operation) {
+  const request = operation.requestBody ? "request body detected" : "no request body";
+  const params = operation.parameters?.map((item) => item.name).join(", ");
+  const responseCodes = Object.keys(operation.responses || {}).join(", ") || "unknown response";
+  return `OpenAPI path ${path}; ${request}; parameters: ${params || "none"}; responses: ${responseCodes}.`;
+}
+
+function diffFor(target, method, path, operationId) {
+  const rpc = pascal(operationId);
+  if (target === "convert_event") {
+    return `- REST ${method} ${path}\n+ channel ${path.replace(/[/{}/]+/g, ".").replace(/^\./, "")}.${operationId}.v1\n+ event ${rpc}Event\n+ recommended transport: Kafka`;
+  }
+  if (target === "migrate_grpc") {
+    return `- REST ${method} ${path}\n+ rpc ${rpc}(${rpc}Request) returns (${rpc}Response)\n+ generated proto requires human approval`;
+  }
+  if (target === "split_context") {
+    return `- REST ${method} ${path}\n+ split bounded context first\n+ re-run planner after ownership is clarified`;
+  }
+  return `- REST ${method} ${path}\n+ keep REST\n+ document pagination, auth, and compatibility behavior`;
+}
+
+function pascal(value) {
+  return value
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .flatMap((part) => part.match(/[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)|[0-9]+/g) || [part])
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("");
 }
 
 function Step({ icon, label, done, active }) {
@@ -355,7 +451,7 @@ function ProposalPreview({ endpoint, proposal }) {
       <div className="proposalPreview eventPreview">
         <h4><RadioTower size={16} /> Event proposal</h4>
         <p><strong>Recommended transport:</strong> Kafka</p>
-        <p>Durable user status events need replay, fan-out, and audit-friendly ordering for downstream consumers.</p>
+        <p>Durable state-change events usually need replay, fan-out, and audit-friendly ordering for downstream consumers.</p>
       </div>
     );
   }
@@ -363,9 +459,27 @@ function ProposalPreview({ endpoint, proposal }) {
   return (
     <div className="proposalPreview">
       <h4><Code2 size={16} /> gRPC proposal</h4>
-      <pre>{endpoint.id === "POST /users"
-        ? "service UserManagementGrpc {\n  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);\n}\n\nmessage CreateUserRequest {\n  string email = 1;\n  string idempotency_key = 2;\n}"
-        : "service UserManagementGrpc {\n  rpc GetUser(GetUserRequest) returns (GetUserResponse);\n}\n\nmessage GetUserRequest {\n  string user_id = 1;\n}"}</pre>
+      <pre>{`service MigratedService {\n  rpc ${pascal(endpoint.operationId)}(${pascal(endpoint.operationId)}Request) returns (${pascal(endpoint.operationId)}Response);\n}\n\nmessage ${pascal(endpoint.operationId)}Request {\n  string request_id = 1;\n  string idempotency_key = 2;\n}`}</pre>
+    </div>
+  );
+}
+
+function ImplementationPreview({ endpoint, proposal }) {
+  if (!proposal?.approved || endpoint.target !== "migrate_grpc") {
+    return null;
+  }
+  return (
+    <div className={`implementationPreview ${proposal.implemented ? "implemented" : ""}`}>
+      <h4><Code2 size={16} /> Implementation</h4>
+      {proposal.implemented ? (
+        <ul>
+          <li>generated_grpc/proto/service.proto</li>
+          <li>generated_grpc/server/service_impl.py</li>
+          <li>tests/test_grpc_mapping.py</li>
+        </ul>
+      ) : (
+        <p>Proposal approved. Click <strong>Implement gRPC</strong> to generate proto, service scaffold, adapter, and mapping test.</p>
+      )}
     </div>
   );
 }

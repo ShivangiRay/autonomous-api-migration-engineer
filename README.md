@@ -41,13 +41,15 @@ http://localhost:5173
 
 The dashboard is an interactive local demo of the CLI workflow. You can:
 
+- Upload an OpenAPI `.json`, `.yaml`, or `.yml` file.
+- Analyze uploaded endpoints directly in the browser.
 - Select REST endpoints from the inventory.
 - Inspect recommendation rationale, evidence, compatibility score, and contract diff.
 - Generate gRPC or event proposals.
 - Add review comments.
 - Resolve comments.
 - Approve proposals.
-- Simulate gRPC implementation output.
+- See the implementation panel after approval and simulate gRPC implementation output.
 - Review Kafka vs RabbitMQ event transport reasoning.
 - Watch an agent activity feed update as you interact.
 
@@ -215,8 +217,3 @@ Generated outputs include:
 - `adr/0001-contract-migration-strategy.md`
 
 Proposal outputs include the basis for the suggestion. The bootstrap does not train agents on private data; it uses deterministic rules over supplied OpenAPI/source evidence and records that basis in the proposal JSON.
-
-## Demo Login
-
-- Email: `demo@example.com`
-- Password: `demo-password`
