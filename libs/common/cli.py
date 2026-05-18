@@ -7,6 +7,7 @@ from pathlib import Path
 from agents.approval.agent import ApprovalAgent
 from agents.implementation.agent import ImplementationAgent
 from libs.common.memory import MigrationMemoryStore
+from libs.common.models import MigrationTarget
 from libs.common.proposals import propose_event, propose_grpc
 from libs.common.workflow import MigrationWorkflow
 
@@ -21,6 +22,8 @@ def main() -> None:
     analyze = sub.add_parser("analyze")
     analyze.add_argument("openapi_path", nargs="?", default=DEFAULT_OPENAPI)
     analyze.add_argument("--output-dir", default="build/artifacts")
+    analyze.add_argument("--interactive", action="store_true", help="Ask before generating migration proposals.")
+    analyze.add_argument("--proposal-dir", default="build/proposals", help="Where interactive proposals are written.")
 
     propose = sub.add_parser("propose-grpc")
     propose.add_argument("--endpoint", required=True)
@@ -55,6 +58,8 @@ def main() -> None:
         print(f"System: I found {len(result['inventory'].endpoints)} endpoints.")
         for item in result["plan"].recommendations:
             print(f"System: {item.endpoint_id} -> {item.target.value} ({item.confidence:.2f})")
+        if args.interactive:
+            _ask_to_proceed(result["plan"].recommendations, args.openapi_path, args.proposal_dir)
     elif args.command == "propose-grpc":
         path = propose_grpc(args.openapi_path, args.endpoint, args.output_dir)
         proposal = json.loads(Path(path).read_text())
@@ -89,6 +94,35 @@ def main() -> None:
         for path in files:
             print(f"System: Generated {path}")
         print("System: Compatibility check passed.")
+
+
+def _ask_to_proceed(recommendations, openapi_path: str, proposal_dir: str) -> None:
+    actionable = [
+        item for item in recommendations if item.target in {MigrationTarget.GRPC, MigrationTarget.EVENT}
+    ]
+    if not actionable:
+        print("System: No gRPC or event proposals are recommended right now.")
+        return
+
+    for item in actionable:
+        print("")
+        print(f"System: {item.endpoint_id} is a {item.target.value} candidate.")
+        print(f"System: Why: {item.rationale}")
+        answer = input("System: Do you want to proceed and generate a proposal? [y/N] ").strip().lower()
+        if answer not in {"y", "yes"}:
+            print(f"System: Skipped {item.endpoint_id}.")
+            continue
+        try:
+            if item.target == MigrationTarget.GRPC:
+                path = propose_grpc(openapi_path, item.endpoint_id, proposal_dir)
+                print(f"System: Generated gRPC proposal: {path}")
+                print("System: Status is needs_review. Add comments or approve it before implementation.")
+            elif item.target == MigrationTarget.EVENT:
+                path = propose_event(openapi_path, item.endpoint_id, proposal_dir)
+                print(f"System: Generated event proposal: {path}")
+                print("System: Status is needs_review. Review transport recommendation before approval.")
+        except FileExistsError as exc:
+            print(f"System: Proposal already exists: {exc}")
 
 
 if __name__ == "__main__":
