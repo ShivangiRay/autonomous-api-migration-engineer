@@ -21,6 +21,7 @@ def main() -> None:
 
     analyze = sub.add_parser("analyze")
     analyze.add_argument("openapi_path", nargs="?", default=DEFAULT_OPENAPI)
+    analyze.add_argument("--openapi", dest="openapi_option", help="OpenAPI JSON/YAML path. Alias for the positional path.")
     analyze.add_argument("--output-dir", default="build/artifacts")
     analyze.add_argument("--interactive", action="store_true", help="Ask before generating migration proposals.")
     analyze.add_argument("--proposal-dir", default="build/proposals", help="Where interactive proposals are written.")
@@ -54,12 +55,13 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "analyze":
-        result = MigrationWorkflow().run(args.openapi_path, args.output_dir)
+        openapi_path = args.openapi_option or args.openapi_path
+        result = MigrationWorkflow().run(openapi_path, args.output_dir)
         print(f"System: I found {len(result['inventory'].endpoints)} endpoints.")
         for item in result["plan"].recommendations:
             print(f"System: {item.endpoint_id} -> {item.target.value} ({item.confidence:.2f})")
         if args.interactive:
-            _ask_to_proceed(result["plan"].recommendations, args.openapi_path, args.proposal_dir)
+            _ask_to_proceed(result["plan"].recommendations, openapi_path, args.proposal_dir)
     elif args.command == "propose-grpc":
         path = propose_grpc(args.openapi_path, args.endpoint, args.output_dir)
         proposal = json.loads(Path(path).read_text())

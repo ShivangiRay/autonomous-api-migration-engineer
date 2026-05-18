@@ -19,12 +19,51 @@ This bootstrap is intentionally deterministic: it uses graph-style local agents,
 
 ## Quick Start
 
+Install the CLI package after the first PyPI release:
+
+```bash
+pip install autonomous-api-migration-engineer
+```
+
+Run an OpenAPI analysis from any project:
+
+```bash
+migration-engineer analyze \
+  --openapi ./openapi.yaml \
+  --output-dir ./migration-artifacts
+```
+
+Use it from Python:
+
+```python
+from autonomous_api_migration_engineer import run_migration
+
+result = run_migration("openapi.yaml", "migration-artifacts")
+print(result["plan"].readiness_score)
+```
+
+Run the FastAPI server after installing:
+
+```bash
+uvicorn autonomous_api_migration_engineer.api:app --reload --port 8000
+```
+
+Until the first PyPI release is published, install directly from GitHub:
+
+```bash
+pip install "git+https://github.com/ShivangiRay/autonomous-api-migration-engineer.git"
+```
+
+Package publishing notes are in [`docs/package-publishing.md`](docs/package-publishing.md).
+
+Local development setup:
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
-uvicorn apps.api_orchestrator.main:app --reload --port 8000
+uvicorn autonomous_api_migration_engineer.api:app --reload --port 8000
 ```
 
 Dashboard scaffold:
