@@ -6,7 +6,7 @@ This bootstrap is intentionally deterministic: it uses graph-style local agents,
 
 ## What Is Included
 
-- FastAPI orchestration API in `apps/api-orchestrator`
+- FastAPI orchestration API in `apps/api_orchestrator`
 - Interactive React dashboard in `apps/web-dashboard`
 - Multi-agent workflow across scanner, planner, contract generator, verifier, and reporter agents
 - OpenAPI v3 parser and sample legacy user-management service
@@ -14,6 +14,8 @@ This bootstrap is intentionally deterministic: it uses graph-style local agents,
 - Human approval queue model before finalizing generated contracts
 - Docker Compose for API, web, PostgreSQL, and Redis
 - Unit/integration tests for the happy path
+- GitHub Actions CI for Python tests and dashboard builds
+- Contribution and changelog docs for collaborators
 
 ## Quick Start
 
@@ -22,7 +24,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
-uvicorn apps.api-orchestrator.main:app --reload --port 8000
+uvicorn apps.api_orchestrator.main:app --reload --port 8000
 ```
 
 Dashboard scaffold:

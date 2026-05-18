@@ -13,11 +13,11 @@ Autonomous API Migration Engineer analyzes a legacy REST service, builds a servi
 
 ## System Components
 
-- `apps/api-orchestrator`: FastAPI endpoints for upload/analyze, run status, artifacts, approvals, and report retrieval.
+- `apps/api_orchestrator`: FastAPI endpoints for upload/analyze, run status, artifacts, approvals, and report retrieval.
 - `apps/web-dashboard`: React console with service overview, endpoint catalog, graph, diffs, risks, artifacts, approval queue, and report views.
 - `agents/scanner`: parses OpenAPI and code hints into a service inventory.
 - `agents/planner`: classifies endpoints and creates phased migration recommendations.
-- `agents/contract-generator`: emits protoc-compatible `.proto` and AsyncAPI/JSON Schema event contracts.
+- `agents/contract_generator`: emits protoc-compatible `.proto` and AsyncAPI/JSON Schema event contracts.
 - `agents/verifier`: validates contracts, compares REST shapes, and scores compatibility risk.
 - `agents/reporter`: writes Markdown reports and ADRs with evidence.
 - `libs/parsers`: reusable OpenAPI and source parsing.
@@ -56,4 +56,3 @@ Autonomous API Migration Engineer analyzes a legacy REST service, builds a servi
 - REST to event conversion can overfit CRUD naming; planner requires explicit rationale and dependencies.
 - Proto field evolution needs stable numbering; generated contracts reserve provenance metadata.
 - Human approval must remain mandatory before contract finalization.
-
