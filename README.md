@@ -7,7 +7,7 @@ This bootstrap is intentionally deterministic: it uses graph-style local agents,
 ## What Is Included
 
 - FastAPI orchestration API in `apps/api-orchestrator`
-- React dashboard scaffold in `apps/web-dashboard`
+- Interactive React dashboard in `apps/web-dashboard`
 - Multi-agent workflow across scanner, planner, contract generator, verifier, and reporter agents
 - OpenAPI v3 parser and sample legacy user-management service
 - Generated artifacts with provenance metadata
@@ -32,6 +32,24 @@ cd apps/web-dashboard
 npm install
 npm run dev
 ```
+
+Open the dashboard at:
+
+```text
+http://localhost:5173
+```
+
+The dashboard is an interactive local demo of the CLI workflow. You can:
+
+- Select REST endpoints from the inventory.
+- Inspect recommendation rationale, evidence, compatibility score, and contract diff.
+- Generate gRPC or event proposals.
+- Add review comments.
+- Resolve comments.
+- Approve proposals.
+- Simulate gRPC implementation output.
+- Review Kafka vs RabbitMQ event transport reasoning.
+- Watch an agent activity feed update as you interact.
 
 Docker:
 
