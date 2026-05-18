@@ -64,6 +64,71 @@ After uploading a file, use the **Next action** bar:
 5. Approve the proposal.
 6. For gRPC endpoints, click **Implement gRPC** to show generated proto/service/test outputs.
 
+## Dashboard Walkthrough
+
+The UI follows the same approval-first migration flow as the CLI, but makes every step visible.
+
+### 1. Upload And Analyze OpenAPI
+
+![Dashboard after uploading an OpenAPI file and analyzing the Student API](docs/assets/dashboard-step-1-upload-analyze.png)
+
+Upload an OpenAPI `.json`, `.yaml`, or `.yml` file. The dashboard parses the service name, endpoint paths, HTTP methods, request/response shapes, and response codes locally, then refreshes the endpoint inventory and readiness metrics.
+
+In this example, the uploaded `testopenapi.yaml` file is recognized as **Student API**. The UI immediately shows:
+
+- total endpoints discovered,
+- gRPC candidates,
+- event candidates,
+- REST-retained endpoints,
+- risk flags,
+- migration readiness score,
+- the next recommended action.
+
+### 2. Review Endpoint Inventory
+
+![Dashboard showing endpoint inventory, rationale, compatibility score, and approval queue](docs/assets/dashboard-step-2-review-endpoint.png)
+
+Select any endpoint from **Endpoint Inventory** to inspect why the system classified it as `Keep REST`, `gRPC`, or `Event`.
+
+The selected endpoint panel shows:
+
+- the migration recommendation,
+- evidence from the OpenAPI path,
+- compatibility score,
+- explainability notes,
+- REST-to-target contract diff,
+- human approval queue controls.
+
+This is where a developer checks whether the recommendation makes sense before allowing any generated output to move forward.
+
+### 3. Generate A Proposal
+
+![Dashboard after generating a gRPC proposal for an endpoint](docs/assets/dashboard-step-3-generate-proposal.png)
+
+For a gRPC or event candidate, click **Generate proposal**. The dashboard creates a reviewable proposal and changes the next action message to guide the developer.
+
+The proposal is not treated as final code yet. It is a draft artifact that can receive comments, be revised, and then be approved.
+
+### 4. Add Comments And Approve
+
+![Dashboard showing developer comments, resolved feedback, approval state, and generated proto preview](docs/assets/dashboard-step-4-approve-proposal.png)
+
+Use **Add comment** when the proposed contract needs edits. In this example, the developer asks for an idempotency key and validation notes.
+
+After comments are resolved, click **Approve**. The approval queue records that the proposal has passed review and displays the generated gRPC contract preview.
+
+### 5. Implement gRPC Scaffold
+
+![Dashboard after implementing the approved gRPC scaffold](docs/assets/dashboard-step-5-implement-grpc.png)
+
+After approval, click **Implement gRPC**. The dashboard shows the generated implementation outputs:
+
+- `generated_grpc/proto/service.proto`,
+- `generated_grpc/server/service_impl.py`,
+- `tests/test_grpc_mapping.py`.
+
+This models the intended product behavior: no generated contract is silently finalized, and implementation only happens after human approval.
+
 Docker:
 
 ```bash
