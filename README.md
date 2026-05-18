@@ -51,12 +51,113 @@ Interactive migration proposal flow:
 
 ```bash
 migration-engineer analyze --interactive
-migration-engineer propose-grpc --endpoint "POST /users"
-migration-engineer comment --proposal build/proposals/proposal-post-users.json --body "Add idempotency key and validation notes"
-migration-engineer resolve-comments --proposal build/proposals/proposal-post-users.json
-migration-engineer approve --proposal build/proposals/proposal-post-users.json
-migration-engineer implement-grpc --proposal build/proposals/proposal-post-users.json
 ```
+
+The command prints each recommendation and asks before creating a proposal:
+
+```text
+System: POST /users is a migrate_grpc candidate.
+System: Do you want to proceed and generate a proposal? [y/N]
+```
+
+If you answer `y`, proposal files are written under `build/proposals/`.
+
+For the included sample service, accepting all actionable recommendations creates:
+
+```text
+build/proposals/proposal-post-users.json
+build/proposals/proposal-get-users-userid.json
+build/proposals/proposal-patch-users-userid-event.json
+```
+
+## Reviewing And Approving Proposals
+
+Inspect a proposal:
+
+```bash
+python3 -m json.tool build/proposals/proposal-post-users.json
+python3 -m json.tool build/proposals/proposal-get-users-userid.json
+python3 -m json.tool build/proposals/proposal-patch-users-userid-event.json
+```
+
+Add review comments when the generated contract needs changes:
+
+```bash
+migration-engineer comment \
+  --proposal build/proposals/proposal-post-users.json \
+  --body "Add idempotency key and validation notes"
+```
+
+Resolve comments into the proposed contract:
+
+```bash
+migration-engineer resolve-comments \
+  --proposal build/proposals/proposal-post-users.json
+```
+
+Approve a gRPC proposal:
+
+```bash
+migration-engineer approve \
+  --proposal build/proposals/proposal-post-users.json
+```
+
+Generate the gRPC implementation scaffold after approval:
+
+```bash
+migration-engineer implement-grpc \
+  --proposal build/proposals/proposal-post-users.json \
+  --output-dir build/implementation-post-users
+```
+
+Check generated implementation files:
+
+```bash
+find build/implementation-post-users -type f
+```
+
+Expected files:
+
+```text
+build/implementation-post-users/generated_grpc/__init__.py
+build/implementation-post-users/generated_grpc/server/__init__.py
+build/implementation-post-users/generated_grpc/proto/user_service.proto
+build/implementation-post-users/generated_grpc/server/user_service_impl.py
+build/implementation-post-users/tests/test_create_user_grpc_mapping.py
+```
+
+Approve and implement another gRPC endpoint the same way:
+
+```bash
+migration-engineer approve \
+  --proposal build/proposals/proposal-get-users-userid.json
+
+migration-engineer implement-grpc \
+  --proposal build/proposals/proposal-get-users-userid.json \
+  --output-dir build/implementation-get-user
+```
+
+## Event Proposal Review
+
+Event proposals are reviewable artifacts. Inspect the generated event recommendation:
+
+```bash
+python3 -m json.tool build/proposals/proposal-patch-users-userid-event.json
+```
+
+Look for:
+
+```json
+"transport": "kafka"
+```
+
+The event proposal recommends Kafka when the endpoint looks like a durable domain event that benefits from replay, ordering, auditability, and fan-out. It recommends RabbitMQ when the endpoint looks more like task routing, command dispatch, or worker handoff.
+
+Current bootstrap support:
+
+- gRPC proposals support comment, resolve, approve, and implementation scaffold generation.
+- Event proposals support AsyncAPI generation and Kafka/RabbitMQ recommendation review.
+- Event approval and event implementation scaffolding are planned next steps.
 
 Artifact approval states:
 
