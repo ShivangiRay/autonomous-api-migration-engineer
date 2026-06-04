@@ -334,3 +334,144 @@ Generated outputs include:
 - `adr/0001-contract-migration-strategy.md`
 
 Proposal outputs include the basis for the suggestion. The bootstrap does not train agents on private data; it uses deterministic rules over supplied OpenAPI/source evidence and records that basis in the proposal JSON.
+
+---
+
+## MCP Server (Model Context Protocol)
+
+This project ships a fully-featured **MCP server** so any LLM host — Claude Desktop, Cursor, Gemini CLI, or any HTTP client — can call the migration tools directly.
+
+### Install
+
+```bash
+pip install autonomous-api-migration-engineer
+# or from source
+pip install -e ".[dev]"
+```
+
+The MCP dependency (`mcp>=1.0`) is included automatically.
+
+### Tools the LLM can call
+
+| Tool | What it does |
+|---|---|
+| `analyze_rest_endpoint` | Parses an OpenAPI spec and returns a full gRPC mapping analysis: HTTP verb → rpc pattern, payload shapes → message fields, per-endpoint recommendations, confidence scores, and phased rollout plan |
+| `generate_proto` | Generates proto3 file syntax — either for the full service or a single endpoint. Includes a header boilerplate with package/option placeholders |
+| `migrate_code` | Runs the full agentic pipeline: scan → plan → propose → **auto-approve** → implement. Returns all generated file paths and their contents |
+| `generate_grpc_client` | Generates a typed Python gRPC client class to replace old HTTP client calls, plus a `grpc_tools.protoc` compile command |
+
+### Resources the LLM can read
+
+| URI | Content |
+|---|---|
+| `migration://templates/proto_header` | Standard `.proto` file header boilerplate (package, go/java options, well-known imports) |
+| `migration://templates/error_mapping` | gRPC ↔ HTTP status code mapping table + Python dict helpers |
+| `migration://templates/interceptors` | Logging, auth Bearer, and exponential-backoff retry interceptors |
+| `migration://templates/grpc_client` | Python gRPC client stub template with TLS and context manager |
+
+### stdio mode — Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "api-migration-engineer": {
+      "command": "migration-engineer-mcp",
+      "args": [],
+      "env": {}
+    }
+  }
+}
+```
+
+Restart Claude Desktop. The 4 tools appear in Claude's tool picker automatically.
+
+### stdio mode — Cursor
+
+Add to `.cursor/mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "api-migration-engineer": {
+      "command": "migration-engineer-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+Restart Cursor. The tools are available in Cursor's Agent mode.
+
+### stdio mode — Gemini CLI
+
+Add to `~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "api-migration-engineer": {
+      "command": "migration-engineer-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+### HTTP + SSE mode
+
+Run the server on a local port (useful for web-based integrations):
+
+```bash
+migration-engineer-mcp --http --port 8000
+```
+
+Endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /mcp` | JSON-RPC 2.0 — call any tool or read any resource |
+| `GET /sse` | SSE event stream for streaming-capable hosts |
+| `GET /health` | Health check |
+
+Example tool call via HTTP:
+
+```bash
+curl -X POST http://localhost:8000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "analyze_rest_endpoint",
+      "arguments": {
+        "openapi_path": "./testopenapi.yaml"
+      }
+    }
+  }'
+```
+
+Example resource read via HTTP:
+
+```bash
+curl -X POST http://localhost:8000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "resources/read",
+    "params": { "uri": "migration://templates/proto_header" }
+  }'
+```
+
+### stdio fallback (no SDK required)
+
+If the `mcp` package is not installed, the server falls back to a built-in JSON-RPC 2.0 stdio handler that supports all the same methods (`initialize`, `tools/list`, `tools/call`, `resources/list`, `resources/read`). Install the SDK for the best experience with Claude Desktop and Cursor.
+
+### MCP tests
+
+```bash
+pytest tests/mcp/ -v
+```
