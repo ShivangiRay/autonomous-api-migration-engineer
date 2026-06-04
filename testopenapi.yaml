@@ -1,0 +1,46 @@
+openapi: 3.0.3
+
+info:
+  title: Student API
+  version: 1.0.0
+
+servers:
+  - url: https://api.example.com/v1
+
+paths:
+  /students:
+    get:
+      summary: Get all students
+      operationId: getStudents
+      tags:
+        - Students
+      responses:
+        "200":
+          description: List of students
+
+    post:
+      summary: Create student
+      operationId: createStudent
+      tags:
+        - Students
+      responses:
+        "201":
+          description: Student created
+
+    put:
+      summary: Update/replace students
+      operationId: updateStudents
+      tags:
+        - Students
+      responses:
+        "200":
+          description: Students updated
+
+    delete:
+      summary: Delete students
+      operationId: deleteStudents
+      tags:
+        - Students
+      responses:
+        "204":
+          description: Students deleted
