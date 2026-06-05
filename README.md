@@ -176,6 +176,38 @@ Docker:
 docker compose -f infra/docker-compose.yml up --build
 ```
 
+## CLI Walkthrough (LLM-Powered)
+
+The migration engineer can also be run entirely from the command line, supporting local LLM classifications (via Ollama) and code generation.
+
+### 1. LLM-Powered Analysis
+
+Analyze an OpenAPI spec using a local LLM model (e.g., `llama3.2` running on Ollama):
+
+```bash
+migration-engineer analyze testopenapi.yaml --llm --model llama3.2
+```
+
+![Running LLM analysis on the command line](docs/assets/cli-analyze.png)
+
+### 2. Proposal Implementation Scaffold
+
+Generate the code scaffolding for the approved gRPC migration proposal:
+
+```bash
+migration-engineer implement-grpc \
+  --proposal build/proposals/proposal-post-students.json \
+  --output-dir build/implementation-post-students
+```
+
+![Executing gRPC implementation scaffold command](docs/assets/cli-implement.png)
+
+### 3. Review Generated Code
+
+The generator creates the `.proto` service definition, Python implementations, and mapping test stubs:
+
+![Reviewing generated user_service_impl.py code in IDE](docs/assets/generated-code.png)
+
 ## Demo Workflow
 
 Run the sample workflow:
@@ -389,20 +421,43 @@ Restart Claude Desktop. The 4 tools appear in Claude's tool picker automatically
 
 ### stdio mode — Cursor
 
-Add to `.cursor/mcp.json` in your project root:
+You can configure the MCP server in Cursor via two methods:
+
+#### Option A: Cursor Settings UI (Recommended)
+1. Go to **Cursor Settings** -> **Features** -> **MCP**.
+2. Click **+ New MCP Server**.
+3. Set the following fields:
+   * **Name**: `api-migration-engineer`
+   * **Type**: `command`
+   * **Command**: `/Users/shivangi/Documents/GitProjects/autonomous-api-migration-engineer/.venv/bin/migration-engineer-mcp` (or your absolute venv path)
+4. Add any environment variables if required (like `PYTHONPATH` set to the repository root directory).
+
+![Cursor settings showing api-migration-engineer active](docs/assets/cursor-mcp-settings.png)
+
+#### Option B: Edit Configuration JSON
+Add the server entry to `.cursor/mcp.json` or your global Cursor settings:
 
 ```json
 {
   "mcpServers": {
     "api-migration-engineer": {
-      "command": "migration-engineer-mcp",
-      "args": []
+      "command": "/Users/shivangi/Documents/GitProjects/autonomous-api-migration-engineer/.venv/bin/migration-engineer-mcp",
+      "args": [],
+      "env": {
+        "PYTHONPATH": "/Users/shivangi/Documents/GitProjects/autonomous-api-migration-engineer"
+      }
     }
   }
 }
 ```
 
-Restart Cursor. The tools are available in Cursor's Agent mode.
+Once saved, the 4 custom tools will appear in your **MCP tools access list**:
+
+![Cursor tools access list showing the 4 migration tools](docs/assets/cursor-mcp-tools.png)
+
+You can now ask the Cursor Composer/Agent to call these tools:
+
+![Invoking the analyze_rest_endpoint tool in Cursor chat](docs/assets/cursor-mcp-use.png)
 
 ### stdio mode — Gemini CLI
 
