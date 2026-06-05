@@ -1,7 +1,7 @@
 [project]
 name = "autonomous-api-migration-engineer"
-version = "0.1.1"
-description = "Production-grade bootstrap for AI-assisted REST migration planning."
+version = "0.2.0"
+description = "Production-grade bootstrap for AI-assisted REST migration planning — with optional Ollama LLM planner."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -15,7 +15,10 @@ keywords = [
   "protobuf",
   "event-driven-architecture",
   "agentic-ai",
-  "rag"
+  "rag",
+  "ollama",
+  "llm-planner",
+  "mcp"
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -39,6 +42,7 @@ dependencies = [
   "protobuf>=5.0",
   "opentelemetry-api>=1.24",
   "prometheus-client>=0.20",
+  "httpx>=0.27",
   "mcp>=1.0"
 ]
 
@@ -50,6 +54,8 @@ dev = [
   "black>=24.0",
   "ruff>=0.3"
 ]
+# ollama extra: install Ollama alongside this package (optional, Ollama is normally installed system-wide)
+ollama = []
 
 [project.urls]
 Homepage = "https://github.com/ShivangiRay/autonomous-api-migration-engineer"

@@ -145,6 +145,9 @@ def analyze_rest_endpoint(
     openapi_path: str | None = None,
     openapi_content: str | None = None,
     endpoint_id: str | None = None,
+    use_llm: bool = False,
+    model: str | None = None,
+    ollama_url: str | None = None,
 ) -> dict[str, Any]:
     """
     Analyze a REST OpenAPI spec and produce a gRPC mapping analysis.
@@ -152,6 +155,17 @@ def analyze_rest_endpoint(
     Provide either a file path (openapi_path) or the raw YAML/JSON content
     (openapi_content). Optionally filter to a single endpoint by endpoint_id
     (e.g. "GET /users/{id}").
+
+    Args:
+        openapi_path: Filesystem path to the OpenAPI YAML/JSON spec.
+        openapi_content: Raw YAML or JSON string of the spec.
+        endpoint_id: Filter to a single endpoint (e.g. "POST /users").
+        use_llm: Use a local Ollama LLM for richer endpoint classification.
+                 Requires Ollama running at ollama_url. Falls back to
+                 deterministic rules if Ollama is unreachable.
+        model: Ollama model name (e.g. "llama3.2", "mistral", "phi3:mini").
+               Only used when use_llm=True. Default: "llama3.2".
+        ollama_url: Ollama server base URL. Default: "http://localhost:11434".
 
     Returns a structured analysis with per-endpoint gRPC mapping, RPC pattern
     advice, proto message field shapes, and migration recommendations.
@@ -168,7 +182,11 @@ def analyze_rest_endpoint(
         raise ValueError("Provide either openapi_path or openapi_content.")
 
     inventory = ScannerAgent().scan(spec_path)
-    plan = ArchitecturePlannerAgent().plan(inventory)
+    plan = ArchitecturePlannerAgent(
+        use_llm=use_llm,
+        model=model,
+        ollama_url=ollama_url,
+    ).plan(inventory)
 
     rec_by_id = {r.endpoint_id: r for r in plan.recommendations}
 
@@ -189,6 +207,8 @@ def analyze_rest_endpoint(
         "service_name": inventory.service_name,
         "total_endpoints": len(inventory.endpoints),
         "readiness_score": plan.readiness_score,
+        "planner_mode": "llm" if use_llm else "deterministic",
+        "llm_model": model if use_llm else None,
         "summary": {
             "grpc_candidates": grpc_count,
             "event_candidates": event_count,

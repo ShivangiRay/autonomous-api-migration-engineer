@@ -19,12 +19,26 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="migration-engineer")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    analyze = sub.add_parser("analyze")
+    analyze = sub.add_parser("analyze", help="Analyse an OpenAPI spec and plan the migration.")
     analyze.add_argument("openapi_path", nargs="?", default=DEFAULT_OPENAPI)
     analyze.add_argument("--openapi", dest="openapi_option", help="OpenAPI JSON/YAML path. Alias for the positional path.")
     analyze.add_argument("--output-dir", default="build/artifacts")
     analyze.add_argument("--interactive", action="store_true", help="Ask before generating migration proposals.")
     analyze.add_argument("--proposal-dir", default="build/proposals", help="Where interactive proposals are written.")
+    analyze.add_argument(
+        "--llm", action="store_true",
+        help="Use a local Ollama LLM to classify endpoints instead of deterministic rules.",
+    )
+    analyze.add_argument(
+        "--model", default=None,
+        metavar="MODEL",
+        help="Ollama model to use with --llm (e.g. llama3.2, mistral, phi3:mini). Default: llama3.2.",
+    )
+    analyze.add_argument(
+        "--ollama-url", default=None,
+        metavar="URL",
+        help="Base URL for the Ollama server (default: http://localhost:11434).",
+    )
 
     propose = sub.add_parser("propose-grpc")
     propose.add_argument("--endpoint", required=True)
@@ -56,7 +70,15 @@ def main() -> None:
     args = parser.parse_args()
     if args.command == "analyze":
         openapi_path = args.openapi_option or args.openapi_path
-        result = MigrationWorkflow().run(openapi_path, args.output_dir)
+        use_llm = getattr(args, "llm", False)
+        model = getattr(args, "model", None)
+        ollama_url = getattr(args, "ollama_url", None)
+        if use_llm:
+            print(f"System: LLM planner active (model={model or 'llama3.2'}, url={ollama_url or 'http://localhost:11434'}).")
+            print("System: Calling Ollama for each endpoint — this may take a few seconds per endpoint.")
+        result = MigrationWorkflow(
+            use_llm=use_llm, llm_model=model, ollama_url=ollama_url
+        ).run(openapi_path, args.output_dir)
         print(f"System: I found {len(result['inventory'].endpoints)} endpoints.")
         for item in result["plan"].recommendations:
             print(f"System: {item.endpoint_id} -> {item.target.value} ({item.confidence:.2f})")

@@ -12,9 +12,27 @@ from agents.reporter.agent import ReportingAgent
 
 
 class MigrationWorkflow:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        use_llm: bool = False,
+        llm_model: str | None = None,
+        ollama_url: str | None = None,
+        llm_timeout: float = 60.0,
+    ) -> None:
+        """
+        Args:
+            use_llm: Enable Ollama LLM-powered endpoint classification.
+            llm_model: Ollama model name (e.g. "llama3.2", "mistral").
+            ollama_url: Ollama server URL (default: http://localhost:11434).
+            llm_timeout: Per-endpoint timeout for LLM calls in seconds.
+        """
         self.scanner = ScannerAgent()
-        self.planner = ArchitecturePlannerAgent()
+        self.planner = ArchitecturePlannerAgent(
+            use_llm=use_llm,
+            model=llm_model,
+            ollama_url=ollama_url,
+            timeout=llm_timeout,
+        )
         self.generator = ContractGenerationAgent()
         self.verifier = VerificationAgent()
         self.reporter = ReportingAgent()
@@ -53,4 +71,3 @@ class MigrationWorkflow:
             "artifacts": artifacts,
             "report_path": str(report_path),
         }
-

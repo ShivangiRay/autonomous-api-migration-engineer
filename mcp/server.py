@@ -71,7 +71,9 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "description": (
             "Analyze a REST OpenAPI/Swagger spec and produce a detailed gRPC mapping analysis. "
             "Returns per-endpoint migration recommendations, RPC pattern advice, proto message "
-            "field shapes, confidence scores, and phased rollout plan."
+            "field shapes, confidence scores, and phased rollout plan. "
+            "Set use_llm=true to use a local Ollama model for richer, context-aware classification "
+            "instead of deterministic rules (requires Ollama running locally)."
         ),
         "inputSchema": {
             "type": "object",
@@ -90,6 +92,26 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                         "Optional. Filter analysis to a single endpoint, e.g. 'GET /users/{id}'. "
                         "Omit to analyze the entire service."
                     ),
+                },
+                "use_llm": {
+                    "type": "boolean",
+                    "description": (
+                        "Use a local Ollama LLM for richer, context-aware endpoint classification "
+                        "instead of deterministic rules. Requires Ollama running at ollama_url. "
+                        "Falls back to deterministic rules if Ollama is unreachable. Default: false."
+                    ),
+                    "default": False,
+                },
+                "model": {
+                    "type": "string",
+                    "description": (
+                        "Ollama model to use when use_llm=true. "
+                        "Examples: 'llama3.2', 'mistral', 'phi3:mini', 'gemma2:2b'. Default: 'llama3.2'."
+                    ),
+                },
+                "ollama_url": {
+                    "type": "string",
+                    "description": "Ollama server base URL. Default: 'http://localhost:11434'.",
                 },
             },
             "additionalProperties": False,
@@ -139,7 +161,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "Run the full REST-to-gRPC migration pipeline for a single endpoint — fully agentic, "
             "no human checkpoint. Scans the spec, plans the migration, generates a gRPC proposal, "
             "auto-approves it, then scaffolds the service implementation, stubs, and mapping tests. "
-            "Returns all generated file paths and their contents for inline LLM review."
+            "Returns all generated file paths and their contents for inline LLM review. "
+            "Set use_llm=true to use Ollama for the planning step."
         ),
         "inputSchema": {
             "type": "object",
@@ -165,6 +188,22 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "memory_path": {
                     "type": "string",
                     "description": "Optional path to the migration memory JSONL store for RAG context.",
+                },
+                "use_llm": {
+                    "type": "boolean",
+                    "description": (
+                        "Use a local Ollama LLM for richer endpoint classification during planning. "
+                        "Falls back to deterministic rules if Ollama is unreachable. Default: false."
+                    ),
+                    "default": False,
+                },
+                "model": {
+                    "type": "string",
+                    "description": "Ollama model name when use_llm=true (e.g. 'llama3.2', 'mistral').",
+                },
+                "ollama_url": {
+                    "type": "string",
+                    "description": "Ollama server base URL. Default: 'http://localhost:11434'.",
                 },
             },
             "additionalProperties": False,

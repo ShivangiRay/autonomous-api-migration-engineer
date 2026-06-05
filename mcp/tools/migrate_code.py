@@ -34,6 +34,9 @@ def migrate_code(
     openapi_content: str | None = None,
     output_dir: str = "build/mcp_migration",
     memory_path: str | None = None,
+    use_llm: bool = False,
+    model: str | None = None,
+    ollama_url: str | None = None,
 ) -> dict[str, Any]:
     """
     Run the full REST-to-gRPC migration pipeline for a single endpoint (auto-approve).
@@ -51,6 +54,9 @@ def migrate_code(
         openapi_content: Raw YAML or JSON string (alternative to openapi_path).
         output_dir: Root directory for generated files (default: build/mcp_migration).
         memory_path: Optional path to the migration memory JSONL store for RAG context.
+        use_llm: Use a local Ollama LLM for richer endpoint classification.
+        model: Ollama model name (e.g. "llama3.2", "mistral", "phi3:mini").
+        ollama_url: Ollama server base URL. Default: "http://localhost:11434".
 
     Returns:
         A dict with:
@@ -71,7 +77,11 @@ def migrate_code(
     inventory = ScannerAgent().scan(spec_path)
 
     # ── 2. Plan ──────────────────────────────────────────────────────────────
-    plan = ArchitecturePlannerAgent().plan(inventory)
+    plan = ArchitecturePlannerAgent(
+        use_llm=use_llm,
+        model=model,
+        ollama_url=ollama_url,
+    ).plan(inventory)
     rec = next((r for r in plan.recommendations if r.endpoint_id == endpoint_id), None)
     if rec is None:
         available = [r.endpoint_id for r in plan.recommendations]
